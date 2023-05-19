@@ -1,0 +1,233 @@
+<!doctype html>
+
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>SM64</title>
+
+  <!-- CSS -->
+  <style>
+    @keyframes rainbowBG {
+      0% {
+        background-position: 0% 82%
+      }
+
+      50% {
+        background-position: 100% 19%
+      }
+
+      100% {
+        background-position: 0% 82%
+      }
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      min-height: 100vh;
+      background: linear-gradient(124deg, #7f1100, #761010, #6d570e, #696b0e, #0f601c, #09474a, #140e61, #580060, #6c0076);
+      background-size: 1800% 1800%;
+      font-family: Arial, Helvetica, sans-serif;
+      color: rgb(255, 255, 255);
+      image-rendering: pixelated;
+      scrollbar-width: none;
+      animation: rainbowBG 18s ease infinite;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    canvas {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    button {
+      background-color: rgba(0, 0, 0, .35);
+      border: none;
+      color: white;
+      padding: 8px 10px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font: bold 10pt Arial, Helvetica, sans-serif;
+      font-size: 16px;
+      cursor:pointer;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #top-ui {
+      margin-left: 1em;
+      display: flex;
+      align-items: center;
+    }
+
+    #controls {
+      font: 400;
+    }
+
+    #controlinfo {
+      padding-left: 25px;
+      padding-bottom: 30px;
+    }
+
+    #info {
+      margin-left: 50px;
+      max-width: 500px;
+    }
+
+    #infolist {
+      padding-left: 10px;
+      font-weight: 300;
+    }
+
+    #datamanagement {
+      padding-left: 10px;
+      max-width: 450px;
+    }
+
+    #datainfo {
+      padding-left: 10px;
+      max-width: 450px;
+    }
+
+    #datadesc {
+      padding-bottom: 55px;
+    }
+  </style>
+</head>
+
+<!-- HTML DOC -->
+
+<body>
+  <div id="top-ui">
+
+    <div id="controls">
+      <h2>Controls</h2>
+      <ul id="controlinfo">
+        <li>Movement: WASD</li>
+        <li>ButtonA: L</li>
+        <li>ButtonB = Comma</li>
+        <li>LeftTrigger: K</li>
+        <li>Z: Period</li>
+        <li>Start: Space</li>
+        <li>C-stick: Arrows</li>
+        <li>Camera: Shift</li>
+      </ul>
+    </div>
+
+    <div id="info">
+      <h2>Super Mario 64 Browser Edition!</h2>
+
+      <div id="infolist">
+        <p>Document edited to run off a local file. All external files such as the game are hosted on https://archive.org</p>
+        <p>Save Data is saved in your browser local storage, clearing cache will delete it!</p>
+        <p>Press Tab Options to view settings that allow you to disguise your tab from others.</p>
+        <p>Page up/down to show or hide these instructions. Or just scroll.</p>
+      </div>
+    </div>
+
+    <div id="datamanagement">
+      <h2>Import / Export Save Data.</h2>
+      <ul id="datainfo">
+        <p id="datadesc">Press <b>"LOAD"</b> to import a save by pasting it into the box that appears. Press
+          <b>"EXPORT"</b> to copy your save to your clipboard. From there, save it anywhere!
+        </p>
+
+        <script>
+          function stopAudio() {
+            var SDL2 = Module["SDL2"]
+            SDL2.audioContext.suspend(); // SDL2.audioContext = undefined;
+          }
+          function startAudio() {
+            var SDL2 = Module["SDL2"]
+            SDL2.audioContext.resume(); // SDL2.audioContext = undefined;
+          }
+
+          function loadData() {
+            stopAudio()
+            let saveFile = window.prompt("Paste a valid save file here: ", "");
+
+            if (saveFile != null && saveFile != "") {
+              localStorage.setItem("sm64_save_file", saveFile);
+              console.log("LOADING SAVE FILE: " + saveFile + "/FILE_END")
+              alert("Loaded save data! Refresh the page for it to take effect.");
+              location.reload();
+            } else {
+              alert("Error loading save, please try again.");
+              startAudio()
+            }
+          }
+          function saveData() {
+            stopAudio()
+            var saveFile = localStorage.getItem("sm64_save_file");
+            window.prompt("Here is your save file. Copy this text and save it elsewhere for later import.", saveFile);
+
+            startAudio()
+          }
+          function tabOptions() {
+            // Disguise Tab or revert changes.
+
+
+          }
+        </script>
+
+        <button type="button" onclick="loadData()">LOAD SAVE</button>
+        <button type="button" onclick="saveData()">EXPORT SAVE</button>
+        <button type="button" onclick="tabOptions()">TAB OPTIONS</button>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- MARIO WASM -->
+  <div id="container">
+    <canvas class="emscripten" id="canvas"></canvas>
+  </div>
+  <script type="text/javascript">
+    var Module = {
+      preRun: [],
+      postRun: [],
+      print: (function () {
+        return function (text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(" ");
+          console.log(text);
+        };
+      })(),
+      printErr: function (text) {
+        if (arguments.length > 1)
+          text = Array.prototype.slice.call(arguments).join(" ");
+        console.error(text);
+      },
+      canvas: (function () {
+        var canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.addEventListener("webglcontextlost", function (e) {
+          alert("WebGL context lost. You will need to reload the page.");
+          e.preventDefault();
+        }, false);
+        return canvas;
+      })(),
+      setStatus: function (text) {
+      }
+    };
+    console.log(Module)
+  </script>
+  <script async type="text/javascript" src="loader.js"></script> <!-- https://archive.org/download/js_script_202305/loader.js-->
+  <script>
+  </script>
+</body>
+
+</html>
